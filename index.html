@@ -3,12 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雲林高鐵 MOOVO 信仰與美食路徑規劃</title>
+    <title>雲林智慧單車旅遊系統</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- 引入叢集樣式 -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
     
     <style>
@@ -18,92 +15,78 @@
             --highlight-orange: #FF9800;
             --temple-red: #E53935;
             --spot-blue: #2196F3;
-            --food-pink: #E91E63;
-            --pokemon-blue: #3b4cca;
-            --pikmin-pink: #ff4081;
-            --sos-red: #D32F2F;
-            --bg-light: #f8f9fa;
+            --bg-light: #f4f6f8;
+            --text-main: #2c3e50;
+            --border-color: #e2e8f0;
         }
 
-        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-light); overflow: hidden; }
-        #app-container { display: flex; flex-direction: column; height: 100vh; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg-light); color: var(--text-main); overflow: hidden;}
+        #app-container { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        header { background: #1a1a1a; color: white; padding: 1rem; text-align: center; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-        header h1 { margin: 0; font-size: 1.5rem; }
-        header p { margin: 5px 0 0 0; font-size: 0.9rem; color: #ccc; }
+        header { background: #1a1a1a; color: white; padding: 1rem; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 1000; }
+        header h1 { margin: 0; font-size: 1.4rem; letter-spacing: 0.5px; }
+        header p { margin: 4px 0 0 0; font-size: 0.85rem; color: #aaa; }
 
         .map-wrapper { position: relative; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
         #map { flex-grow: 1; width: 100%; height: 100%; z-index: 1; }
 
-        .control-panel {
-            position: absolute; top: 15px; left: 15px; width: 340px; max-height: calc(100vh - 100px);
-            background: rgba(255, 255, 255, 0.95); padding: 15px; border-radius: 12px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2); z-index: 1000; backdrop-filter: blur(10px);
-            border: 1px solid #eee; display: flex; flex-direction: column;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
-        }
-        .control-panel.collapsed { transform: translateX(-150%); opacity: 0; pointer-events: none; }
-        .panel-scroll-area { overflow-y: auto; padding-right: 5px; flex-grow: 1; }
-        .panel-scroll-area::-webkit-scrollbar { width: 6px; }
-        .panel-scroll-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-
-        .toggle-panel-btn {
-            position: absolute; top: 15px; left: 15px; z-index: 990; background: white;
-            border: 1px solid #eee; padding: 12px 18px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            cursor: pointer; font-weight: bold; color: #333; display: flex; align-items: center; gap: 8px;
-            transition: all 0.3s; opacity: 0; pointer-events: none; transform: translateX(-20px);
-        }
-        
+        /* 測試按鈕 */
         .test-story-btn {
-            position: absolute; top: 15px; left: 160px; z-index: 990; background: #FF9800; color: white;
-            border: none; padding: 12px 18px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            cursor: pointer; font-weight: bold; transition: all 0.2s;
+            position: absolute; top: 15px; left: 15px; z-index: 990;
+            background: #FF9800; color: white; border: none; padding: 12px 18px;
+            border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            cursor: pointer; font-weight: bold; font-size: 1rem;
+            transition: transform 0.2s, background 0.2s;
         }
-        .test-story-btn:hover { background: #F57C00; }
+        .test-story-btn:hover { background: #F57C00; transform: scale(1.05); }
 
-        .panel-header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
-        .close-btn { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #999; padding: 0; line-height: 1; }
-        .weather-widget { background: #e3f2fd; border-radius: 8px; padding: 10px; margin-bottom: 15px; text-align: center; font-weight: bold; color: #1565c0; font-size: 0.95rem; border: 1px solid #bbdefb; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: #333;}
-        select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.95rem; background-color: white; cursor: pointer; }
-        .btn-route { width: 100%; padding: 12px; border: none; border-radius: 8px; background: var(--moovo-green); color: white; cursor: pointer; font-weight: bold; font-size: 1rem; }
-        .btn-sos { width: 100%; padding: 12px; border: none; border-radius: 8px; background: var(--sos-red); color: white; cursor: pointer; font-weight: bold; font-size: 0.95rem; margin-top: 10px; }
-        #route-info { margin-top: 15px; font-size: 0.9rem; line-height: 1.5; background: #f1f8e9; padding: 10px; border-radius: 8px; border-left: 4px solid var(--moovo-green); display: none; }
-        
-        .dashboard-panel { position: absolute; top: 15px; right: 15px; background: rgba(255, 255, 255, 0.95); padding: 15px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); z-index: 1000; min-width: 110px; display: none; }
-        .dash-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 1rem; }
-        .dash-row strong { color: var(--moovo-dark); font-size: 1.15rem; }
-
-        .leaflet-popup-content-wrapper { border-radius: 8px; box-shadow: 0 3px 14px rgba(0,0,0,0.4); }
-        .popup-tag { font-size: 0.7rem; padding: 2px 5px; border-radius: 4px; color: white; margin-bottom: 5px; display: inline-block; }
-        .tag-temple { background: var(--temple-red); }
-        .tag-food { background: var(--highlight-orange); }
-        .tag-dynamic-food { background: var(--food-pink); }
-        .tag-spot { background: var(--spot-blue); }
-
-        /* ====================================================
-           Story Card 專用樣式
-           ==================================================== */
+        /* Story Card 側邊抽屜樣式 */
         .story-card-drawer {
             position: absolute; top: 0; right: -420px; width: 400px; max-width: 100%; height: 100%;
             background: #fff; box-shadow: -5px 0 25px rgba(0,0,0,0.15); z-index: 3000;
             transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column;
         }
         .story-card-drawer.open { right: 0; }
-        .sc-close-btn { position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.6); color: #fff; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; z-index: 10; font-size: 1.2rem; display: flex; justify-content: center; align-items: center; }
+        
+        .sc-close-btn { 
+            position: absolute; top: 15px; right: 15px; background: rgba(0,0,0,0.6); 
+            color: #fff; border: none; border-radius: 50%; width: 36px; height: 36px; 
+            cursor: pointer; z-index: 10; font-size: 1.2rem; backdrop-filter: blur(4px);
+            display: flex; justify-content: center; align-items: center; transition: background 0.2s;
+        }
+        .sc-close-btn:hover { background: rgba(0,0,0,0.9); }
+
         .sc-content { overflow-y: auto; flex-grow: 1; }
+        
+        /* 畫廊輪播區塊 */
         .sc-hero-wrapper { position: relative; width: 100%; aspect-ratio: 16/9; background: #e2e8f0; }
+        .sc-hero-gallery {
+            display: flex; overflow-x: auto; scroll-snap-type: x mandatory; 
+            width: 100%; height: 100%; scrollbar-width: none;
+        }
+        .sc-hero-gallery::-webkit-scrollbar { display: none; }
+        .sc-hero-gallery img {
+            width: 100%; height: 100%; object-fit: cover; flex: none; scroll-snap-align: start;
+        }
+        .sc-gallery-hint {
+            position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.6); 
+            color: white; font-size: 0.75rem; padding: 4px 10px; border-radius: 12px; pointer-events: none;
+        }
+
         .sc-body { padding: 20px; }
-        .sc-header { margin-bottom: 20px; }
         .sc-category-tag { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; color: white; margin-bottom: 8px; }
         .sc-title { font-size: 1.5rem; margin: 0 0 5px 0; color: #1e293b; font-weight: 800; }
-        .sc-meta-info { font-size: 0.85rem; color: #64748b; line-height: 1.5; margin-top: 10px;}
+        .sc-rating { color: #FF9800; font-size: 1rem; margin-bottom: 8px; }
+        .sc-meta-info { font-size: 0.85rem; color: #64748b; line-height: 1.5; margin-bottom: 15px;}
+        
         .sc-section { margin-bottom: 20px; }
         .sc-section-title { font-size: 1.05rem; color: #0f172a; margin: 0 0 10px 0; font-weight: 700; }
         .sc-text { font-size: 0.95rem; line-height: 1.6; color: #475569; margin: 0; }
+        
         .sc-list { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-        .sc-list-item { background: #f1f5f9; padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; color: #334155; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 4px; }
+        .sc-list-item { background: #f1f5f9; padding: 6px 12px; border-radius: 8px; font-size: 0.85rem; color: #334155; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 6px; }
+
+        @media (max-width: 768px) { .story-card-drawer { width: 100%; right: -100%; } }
     </style>
 </head>
 <body>
@@ -117,58 +100,28 @@
     <div class="map-wrapper">
         <div id="map"></div>
         
-        <button id="expandBtn" class="toggle-panel-btn" onclick="togglePanel()">⚙️ 展開設定面板</button>
-        <button class="test-story-btn" onclick="testStoryCard()">🧪 測試 Story Card</button>
+        <!-- 測試 Story Card 的按鈕 -->
+        <button class="test-story-btn" onclick="testStoryCard()">
+            🧪 點我測試 Story Card
+        </button>
 
-        <div class="dashboard-panel" id="service-dashboard">
-            <h3 style="margin: 0 0 10px 0; font-size: 0.95rem; text-align: center; border-bottom: 1px solid #ddd; padding-bottom: 8px;">🧳 旅行服務</h3>
-            <div id="dashboard-content"></div>
-        </div>
-
-        <div class="control-panel" id="controlPanel">
-            <div class="panel-header-flex">
-                <span style="font-weight: bold; color: #333; font-size: 1.05rem;">⚙️ 路線與環境設定</span>
-                <button class="close-btn" onclick="togglePanel()">✖</button>
-            </div>
-            
-            <div class="panel-scroll-area">
-                <div id="weather-widget" class="weather-widget">⏳ 正在載入雲林即時氣象...</div>
-
-                <div class="form-group">
-                    <label>📍 選擇 MOOVO 探索路線：</label>
-                    <select id="route-selector">
-                        <option value="huwei">🚲 虎尾媽祖與糖都甜點線</option>
-                        <option value="beigang">🚲 北港朝天武德挑戰線</option>
-                    </select>
-                </div>
-
-                <button class="btn-route" onclick="calculateSelectedRoute()">🗺️ 開始導航</button>
-                <div id="route-info"></div>
-
-                <div class="form-group" style="border-top: 1px dashed #ccc; padding-top: 15px; margin-top: 15px;">
-                    <label style="font-size: 0.95rem; font-weight: bold; color: #333; margin-bottom: 8px;">🛠️ 旅行服務雷達</label>
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                        <label style="font-size: 0.85rem;"><input type="checkbox" onchange="TravelServiceManager.toggleService('convenience', this.checked)"> 🏪 超商</label>
-                        <label style="font-size: 0.85rem;"><input type="checkbox" onchange="TravelServiceManager.toggleService('toilet', this.checked)"> 🚻 廁所</label>
-                    </div>
-                </div>
-
-                <button id="sosBtn" class="btn-sos" onclick="toggleSOSMode()">🆘 啟動 SOS 緊急救援</button>
-            </div>
-        </div>
-
-        <!-- ★ 這是 Story Card 的實體容器，確保畫面能夠滑出！ -->
+        <!-- 這是 Story Card 滑出抽屜的實體容器 -->
         <div id="story-card-container" class="story-card-drawer"></div>
-
     </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
 <script>
     // ====================================================
-    // 核心 Story Card 渲染邏輯
+    // 地圖初始化
+    // ====================================================
+    let map = L.map('map', { zoomControl: false }).setView([23.5681, 120.3019], 14); // 預設對焦北港朝天宮
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+    // ====================================================
+    // Story Card 渲染邏輯
     // ====================================================
     function closeStoryCard() {
         document.getElementById('story-card-container').classList.remove('open');
@@ -176,34 +129,39 @@
 
     function createStoryCard(data) {
         const container = document.getElementById('story-card-container');
-        if (!container) return;
+        
+        let tagColor = data.category === 'Temple' ? 'var(--temple-red)' : 'var(--spot-blue)';
 
-        let tagColor = '#94a3b8';
-        if (data.category === 'Temple') tagColor = 'var(--temple-red)';
+        // 畫廊 (Gallery) 邏輯：使用政府真實網址，若載入失敗自動替換為灰色佔位圖
+        let galleryHtml = '';
+        if (data.images && data.images.length > 0) {
+            data.images.forEach(imgUrl => {
+                galleryHtml += `<img src="${imgUrl}" onerror="this.src='https://placehold.co/800x450/e2e8f0/7f8c8d?text=尚無官方照片'">`;
+            });
+        } else {
+            galleryHtml = `<img src="https://placehold.co/800x450/e2e8f0/7f8c8d?text=尚無官方照片">`;
+        }
 
+        // 動態生成清單
         const featureHtml = (data.feature && data.feature.length > 0) 
             ? `<div class="sc-section"><h3 class="sc-section-title">✨ 景點特色</h3><ul class="sc-list">${data.feature.map(f => `<li class="sc-list-item">✓ ${f}</li>`).join('')}</ul></div>` : '';
 
         const photoHtml = (data.photoSpot && data.photoSpot.length > 0)
             ? `<div class="sc-section"><h3 class="sc-section-title">📸 推薦拍照</h3><ul class="sc-list">${data.photoSpot.map(p => `<li class="sc-list-item">📷 ${p}</li>`).join('')}</ul></div>` : '';
 
-        // 終極防呆：
-        // 1. 如果 data.image 有值，就讀取。沒值就試著讀 images/default.jpg
-        // 2. onerror 觸發時，先試著讀 images/default.jpg
-        // 3. 如果連本機 default.jpg 都找不到，觸發 addEventListener('error')，讀取網路灰色佔位圖，徹底消滅破圖圖示。
-        const initialImgSrc = data.image || 'images/default.jpg';
-        const imgTag = `<img src="${initialImgSrc}" onerror="this.onerror=null; this.src='images/default.jpg'; this.addEventListener('error', function(){this.src='https://placehold.co/800x450/e2e8f0/7f8c8d?text=找不到本機圖片';});" style="width:100%; height:100%; object-fit:cover;">`;
-
+        // 組裝 HTML
         container.innerHTML = `
             <button class="sc-close-btn" onclick="closeStoryCard()">✖</button>
             <div class="sc-content">
                 <div class="sc-hero-wrapper">
-                    ${imgTag}
+                    <div class="sc-hero-gallery">${galleryHtml}</div>
+                    ${data.images && data.images.length > 1 ? `<div class="sc-gallery-hint">左右滑動看更多 ➜</div>` : ''}
                 </div>
                 <div class="sc-body">
                     <div class="sc-header">
-                        <div class="sc-category-tag" style="background-color: ${tagColor}">${data.category || '景點'}</div>
+                        <div class="sc-category-tag" style="background-color: ${tagColor}">${data.category === 'Temple' ? '⛩️ 廟宇' : '景點'}</div>
                         <h2 class="sc-title">${data.name || '未知景點'}</h2>
+                        <div class="sc-rating">★★★★★</div>
                         <div class="sc-meta-info">
                             ${data.address ? `<div>📍 地址：${data.address}</div>` : ''}
                         </div>
@@ -223,63 +181,47 @@
             </div>
         `;
 
+        // 開啟抽屜
         container.classList.add('open');
     }
 
+    // ====================================================
+    // 路線 B：直接使用政府真實圖片網址的資料庫
+    // ====================================================
     function testStoryCard() {
         const dummyData = {
+            id: "t_chaotian",
             name: "北港朝天宮",
-            image: "images/poi/beigang.jpg", 
             category: "Temple",
-            description: "北港朝天宮位於雲林縣北港鎮，是臺灣著名的媽祖信仰中心，每年吸引大量信眾與旅客前來參香、祈福。",
-            history: "創建於清康熙三十三年(1694年)，由臨濟宗第34代樹璧和尚自福建湄洲迎請媽祖神像來台。歷經三百多年擴建，現為國定古蹟。",
-            feature: ["媽祖信仰", "國定古蹟", "北港老街"],
+            // ★ 路線 B：直接放上政府的真實圖片 URL！
+            images: [
+                "https://tour.yunlin.gov.tw/upload/POI/ZC10350618.jpg",
+                "https://tour.yunlin.gov.tw/upload/POI/ZC10350804.jpg",
+                "https://tour.yunlin.gov.tw/upload/POI/ZC10350943.jpg"
+            ],
+            description: "位於雲林北港的北港朝天宮，舊稱「天妃廟」或「天后宮」，是一座歷史悠久莊嚴的媽祖廟，建立於1694年至今已經300多年的歷史，也是國定古蹟。",
+            history: "該廟由臨濟宗第34代樹璧和尚創立於康熙三十三年(1694年)。",
+            feature: ["百年古廟", "媽祖文化", "國定重要民俗"],
+            photoSpot: ["山門", "香爐廣場", "正殿宏偉建築"],
             address: "雲林縣北港鎮中山路178號",
-            stayTime: "60~90分鐘"
+            stayTime: "60~90 分鐘"
         };
-        
-        // 使用您在第一步~第四步定義的本機備援資料，保證能順暢滑出
+
+        // 直接將包含外部圖片網址的資料丟給渲染器
         createStoryCard(dummyData);
     }
 
-    // ====================================================
-    // 地圖與系統基礎邏輯
-    // ====================================================
-    let map = null;
-    let mainLayerGroup = null;
-    let currentPathLayer = null;
+    // 在地圖上加一個標記，點擊它也能觸發 Story Card
+    const customIcon = L.divIcon({
+        html: `<div style="background-color: var(--temple-red); width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 3px 6px rgba(0,0,0,0.4); color: white; cursor:pointer;">⛩️</div>`,
+        className: '', iconSize: [30, 30], iconAnchor: [15, 15]
+    });
+    const marker = L.marker([23.5681, 120.3019], { icon: customIcon }).addTo(map);
+    marker.on('click', () => testStoryCard());
 
-    function initMap() {
-        map = L.map('map', { zoomControl: false }).setView([23.73, 120.43], 12);
-        L.control.zoom({ position: 'bottomright' }).addTo(map);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-        mainLayerGroup = L.layerGroup().addTo(map);
-        
-        // 簡單測試點位
-        const m = L.marker([23.5681, 120.3019]).addTo(mainLayerGroup);
-        m.bindPopup("<b>北港朝天宮</b>");
-    }
-
-    function togglePanel() {
-        const panel = document.getElementById('controlPanel'), btn = document.getElementById('expandBtn');
-        panel.classList.toggle('collapsed');
-        if (panel.classList.contains('collapsed')) { btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; btn.style.transform = 'translateX(0)'; } 
-        else { btn.style.opacity = '0'; btn.style.pointerEvents = 'none'; btn.style.transform = 'translateX(-20px)'; }
-    }
-
-    const TravelServiceManager = {
-        toggleService: function(key, isVisible) { console.log(`Toggle ${key}: ${isVisible}`); }
-    };
-
-    function toggleSOSMode() { alert("SOS 模式啟動"); }
-    
-    function calculateSelectedRoute() {
-        const infoEl = document.getElementById('route-info');
-        infoEl.innerHTML = "✅ <b>導航規劃完成！</b><br>這是一條適合單車的安全路線。";
-        infoEl.style.display = 'block';
-    }
-
-    window.onload = () => { initMap(); };
 </script>
 </body>
 </html>
+
+
+
