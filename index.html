@@ -291,7 +291,14 @@
                     // 如果有正常的網址，就載入該圖片
                     cardImageEl.src = imgUrl;
                 }
-            } catch (error) {
+                
+            } 
+            if (data.government && data.government.imageSource) {
+                    document.getElementById('cardImageSource').innerText = data.government.imageSource;
+                } else {
+                    document.getElementById('cardImageSource').innerText = "";
+                }
+            catch (error) {
                 console.warn(`${poiId}.json 尚未建置，啟用防呆顯示。`);
                 document.getElementById('cardAddress').innerText = "雲林縣 (詳細地址建置中)";
                 document.getElementById('cardStory').innerText = "這是雲林在地的重要信仰中心。此處的詳細導覽文史資料正在建置中，敬請期待未來的更新！";
