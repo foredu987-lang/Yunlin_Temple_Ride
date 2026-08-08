@@ -1,4 +1,19 @@
-/* ====================================================
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>雲林祈福鐵馬道 (智慧導覽版)</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        /* 基礎設定 */
+        body { margin: 0; padding: 0; font-family: 'Noto Serif TC', '微軟正黑體', sans-serif; overflow: hidden; background: #e0e0e0; }
+        #map { height: 100vh; width: 100vw; z-index: 1; }
+
+        /* ====================================================
            Story Card 左側懸浮面板設計 (Side Panel)
            ==================================================== */
         .story-card-container {
@@ -7,7 +22,7 @@
             left: -450px; /* 預設隱藏在畫面左側外 */
             transform: translateY(-50%); /* 垂直置中 */
             
-            width: 25vw; /* 螢幕寬度的四分之一 */
+            width: 28vw; /* 螢幕寬度的比例 */
             min-width: 320px;
             max-width: 400px;
             height: 85vh; /* 高度佔螢幕 85% */
@@ -27,7 +42,7 @@
             left: 20px; /* 從左側滑入，距離左邊緣 20px */
         }
 
-        /* 關閉按鈕改為在圖片右上角的圓形懸浮按鈕 */
+        /* 關閉按鈕 (在圖片右上角的圓形懸浮按鈕) */
         .close-btn {
             position: absolute;
             right: 15px;
@@ -59,7 +74,7 @@
         .story-card-image-wrapper {
             position: relative;
             width: 100%;
-            height: 240px; /* 圖片高度拉高一點 */
+            height: 240px; /* 圖片高度 */
             flex-shrink: 0;
             background-color: #f5f5f5;
         }
@@ -103,9 +118,9 @@
 
         .card-subtitle {
             margin: 0 0 20px 0;
-            color: var(--moovo-dark);
+            color: #388E3C;
             font-weight: bold;
-            font-size: 15px;
+            font-size: 14px;
             display: inline-block;
             padding: 4px 12px;
             background: #e8f5e9;
@@ -136,7 +151,7 @@
 
         .tab-btn.active {
             background: #ffffff;
-            color: var(--moovo-dark);
+            color: #388E3C;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
@@ -177,22 +192,179 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* RWD: 手機版自動調整為全版或底部 */
+        /* ====================================================
+           RWD: 手機版自動調整為滿版或底部彈出
+           ==================================================== */
         @media (max-width: 768px) {
             .story-card-container {
-                width: calc(100% - 40px);
+                width: calc(100% - 30px); /* 兩側各留 15px */
                 max-width: none;
                 height: 80vh;
-                left: 20px !important;
+                left: 15px; /* 覆蓋 active 時的 left: 20px */
                 bottom: -100%;
                 top: auto;
                 transform: none;
                 transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1);
             }
             .story-card-container.active {
-                bottom: 20px;
+                bottom: 15px;
+                left: 15px; /* 確保在手機上也是置中 */
+            }
+            .story-card-image-wrapper { height: 200px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 地圖容器 -->
+    <div id="map"></div>
+
+    <!-- Story Card 左側滑出面板 -->
+    <div id="storyCard" class="story-card-container">
+        
+        <!-- 關閉按鈕 (懸浮於圖片上) -->
+        <button id="closeCardBtn" class="close-btn">×</button>
+        
+        <!-- 頂部圖片區 -->
+        <div class="story-card-image-wrapper">
+            <img id="cardImage" src="" alt="景點圖片">
+            <!-- 顯示版權來源的小字 -->
+            <div id="cardImageSource"></div>
+        </div>
+        
+        <!-- 內容捲動區 -->
+        <div class="story-card-scroll-area">
+            <div class="story-card-body">
+                <h2 id="cardTitle" class="card-title">載入中...</h2>
+                <div id="cardSubtitle" class="card-subtitle">...</div>
+                
+                <!-- 資訊頁籤按鈕 -->
+                <div class="card-tabs">
+                    <button class="tab-btn active" onclick="switchTab('story', event)">在地故事</button>
+                    <button class="tab-btn" onclick="switchTab('info', event)">導覽資訊</button>
+                </div>
+                
+                <!-- 頁籤內容區 -->
+                <div id="tab-story" class="tab-content active">
+                    <p id="cardStory">故事讀取中，請稍候...</p>
+                </div>
+
+                <div id="tab-info" class="tab-content">
+                    <ul class="info-list">
+                        <li>📍 <span id="cardAddress">地址讀取中...</span></li>
+                        <li>🚴 建議騎乘：MOOVO 電輔車</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // 1. 定義地標資料 (精簡版：高鐵站 + 6 大指標廟宇)
+        const POIs = {
+            "hsr": { id: "hsr", name: "雲林高鐵站", type: "station", coords: [120.3937, 23.7360], desc: "MOOVO 租借與起點" },
+            "t_chaotian": { id: "t_chaotian", name: "北港朝天宮", type: "temple", coords: [120.3019, 23.5681], desc: "天上聖母 (北港媽)" },
+            "t_wude": { id: "t_wude", name: "北港武德宮", type: "temple", coords: [120.3033, 23.5831], desc: "天官武財神" },
+            "t_fuxing": { id: "t_fuxing", name: "西螺福興宮", type: "temple", coords: [120.4632, 23.8016], desc: "天上聖母 (太平媽)" },
+            "t_nansheng": { id: "t_nansheng", name: "斗六南聖宮", type: "temple", coords: [120.5564, 23.6933], desc: "關聖帝君 (恩主公)" },
+            "t_chifa": { id: "t_chifa", name: "虎尾持法媽祖宮", type: "temple", coords: [120.4617, 23.7389], desc: "全台最美文風媽祖廟" },
+            "t_liufang": { id: "t_liufang", name: "六房媽紅壇", type: "temple", coords: [120.4431, 23.7121], desc: "六房天上聖母 (無固定廟宇)" }
+        };
+
+        // 2. 初始化地圖 (預設視角：雲林中心，稍微縮小讓6間廟都能看見)
+        const map = L.map('map', { zoomControl: false }).setView([23.7000, 120.4200], 11);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        // 載入 OpenStreetMap 底圖
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18
+        }).addTo(map);
+
+        // 3. 在地圖上放置這 7 個點的標記
+        for (const key in POIs) {
+            const poi = POIs[key];
+            const marker = L.marker([poi.coords[1], poi.coords[0]]).addTo(map);
+            
+            if (poi.type === 'temple') {
+                marker.bindTooltip(poi.name, {permanent: true, direction: "top", offset: [0, -10], className: 'map-label'});
+                marker.on('click', () => showStoryCard(key));
+            } else {
+                marker.bindPopup(`<b>${poi.name}</b><br>${poi.desc}`);
             }
         }
+
+        // --- Story Card 互動邏輯 ---
+
+        document.getElementById('closeCardBtn').addEventListener('click', () => {
+            document.getElementById('storyCard').classList.remove('active');
+        });
+
+        function switchTab(tabId, event) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
+        }
+
+        async function showStoryCard(poiId) {
+            const poi = POIs[poiId];
+            if(!poi) return;
+            
+            document.querySelectorAll('.tab-btn')[0].click();
+
+            document.getElementById('cardTitle').innerText = poi.name;
+            document.getElementById('cardSubtitle').innerText = poi.desc;
+            document.getElementById('cardAddress').innerText = "資料讀取中...";
+            document.getElementById('cardStory').innerText = "在地故事載入中...";
+            document.getElementById('cardImage').src = ""; 
+            
+            document.getElementById('storyCard').classList.add('active');
+
+            try {
+                const response = await fetch(`./story/${poiId}.json`);
+                if (!response.ok) throw new Error("無對應的 JSON 檔案"); 
+                
+                const data = await response.json();
+
+                if(data.government && data.government.address) {
+                    document.getElementById('cardAddress').innerText = data.government.address;
+                }
+                if(data.story && data.story.localStory) {
+                    document.getElementById('cardStory').innerText = data.story.localStory;
+                }
+                
+                // --- 圖片待處理機制 ---
+                const imgUrl = data.government?.image;
+                const cardImageEl = document.getElementById('cardImage');
+
+                if (!imgUrl || imgUrl.trim() === "" || imgUrl.includes("待處理")) {
+                    const pendingSvg = `data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="220" viewBox="0 0 400 220"><rect width="400" height="220" fill="%23eeeeee"/><text x="50%" y="50%" font-family="sans-serif" font-size="20" fill="%23888888" text-anchor="middle" dominant-baseline="middle">圖片待處理</text></svg>`;
+                    cardImageEl.src = pendingSvg;
+                } else {
+                    cardImageEl.src = imgUrl;
+                }
+                
+                // --- 圖片版權來源 ---
+                if (data.government && data.government.imageSource) {
+                    document.getElementById('cardImageSource').innerText = data.government.imageSource;
+                } else {
+                    document.getElementById('cardImageSource').innerText = "";
+                }
+                
+            } catch (error) {
+                console.warn(`${poiId}.json 尚未建置，啟用防呆顯示。`);
+                document.getElementById('cardAddress').innerText = "雲林縣 (詳細地址建置中)";
+                document.getElementById('cardStory').innerText = "這是雲林在地的重要信仰中心。此處的詳細導覽文史資料正在建置中，敬請期待未來的更新！";
+            }
+        }
+    </script>
+</body>
+</html>
 
 
 
