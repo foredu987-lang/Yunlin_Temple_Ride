@@ -277,8 +277,18 @@
                 if(data.story && data.story.localStory) {
                     document.getElementById('cardStory').innerText = data.story.localStory;
                 }
-                if(data.government && data.government.image) {
-                    document.getElementById('cardImage').src = data.government.image;
+                // --- 圖片待處理機制 ---
+                const imgUrl = data.government?.image;
+                const cardImageEl = document.getElementById('cardImage');
+
+                // 如果網址不存在、是空字串，或者是「待處理」
+                if (!imgUrl || imgUrl.trim() === "" || imgUrl.includes("待處理")) {
+                    // 使用內建的 SVG 向量圖產生灰底與文字，完全不依賴外部網路
+                    const pendingSvg = `data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="220" viewBox="0 0 400 220"><rect width="400" height="220" fill="%23eeeeee"/><text x="50%" y="50%" font-family="sans-serif" font-size="20" fill="%23888888" text-anchor="middle" dominant-baseline="middle">圖片待處理</text></svg>`;
+                    cardImageEl.src = pendingSvg;
+                } else {
+                    // 如果有正常的網址，就載入該圖片
+                    cardImageEl.src = imgUrl;
                 }
             } catch (error) {
                 console.warn(`${poiId}.json 尚未建置，啟用防呆顯示。`);
