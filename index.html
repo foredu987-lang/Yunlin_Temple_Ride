@@ -44,13 +44,36 @@
             gap: 8px;
         }
 
-        .control-panel select {
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #ddd;
+        .poi-checklist {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 5px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .poi-checklist label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             font-size: 14px;
-            outline: none;
-            background: #fff;
+            cursor: pointer;
+            padding: 8px 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            transition: all 0.2s;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .poi-checklist label:hover { background: #f1f5f9; border-color: #cbd5e1; }
+        
+        .poi-checklist input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #6ABA01;
             cursor: pointer;
         }
 
@@ -257,12 +280,16 @@
     <!-- 右上角：路線指揮中心 -->
     <div class="control-panel" id="routingPanel">
         <h3>🗺️ 雲林智慧騎乘規劃</h3>
-        <select id="routeSelector">
-            <option value="huwei">🚲 虎尾雙媽輕鬆騎 (高鐵出發)</option>
-            <option value="beigang">🚲 北港雙神朝聖線 (高鐵出發)</option>
-            <option value="tsp_all">🌟 雲林大滿貫 (TSP 最佳化計算)</option>
-        </select>
-        <button id="calcBtn" onclick="calculateRoute()">開始規劃路線</button>
+        <span style="font-size: 13px; color: #666; margin-bottom: 5px;">請勾選您想去的地點（預設高鐵出發）：</span>
+        <div class="poi-checklist">
+            <label><input type="checkbox" class="poi-cb" value="t_chifa"> ⛩️ 虎尾持法媽祖宮</label>
+            <label><input type="checkbox" class="poi-cb" value="t_liufang"> ⛩️ 六房天上聖母 (紅壇)</label>
+            <label><input type="checkbox" class="poi-cb" value="t_fuxing"> ⛩️ 西螺福興宮</label>
+            <label><input type="checkbox" class="poi-cb" value="t_wude"> ⛩️ 北港武德宮</label>
+            <label><input type="checkbox" class="poi-cb" value="t_chaotian"> ⛩️ 北港朝天宮</label>
+            <label><input type="checkbox" class="poi-cb" value="t_nansheng"> ⛩️ 斗六南聖宮</label>
+        </div>
+        <button id="calcBtn" onclick="calculateRoute()">AI 計算最順路線</button>
         <div id="routeResult" class="route-result"></div>
     </div>
 
@@ -360,40 +387,35 @@
         let currentRouteLayer = null; // 用來記錄目前畫在地圖上的線，方便切換時清除
 
         async function calculateRoute() {
-            const routeType = document.getElementById('routeSelector').value;
-            const btn = document.getElementById('calcBtn');
+            const checkedBoxes = document.querySelectorAll('.poi-cb:checked');
             const resultDiv = document.getElementById('routeResult');
+            
+            // 防呆：如果都沒勾選，使用提示框顯示訊息
+            if (checkedBoxes.length === 0) {
+                resultDiv.innerHTML = `<span style="color:#d32f2f; font-weight:bold;">⚠️ 請至少勾選一個想去的地點！</span>`;
+                resultDiv.style.display = 'block';
+                return;
+            }
+
+            const btn = document.getElementById('calcBtn');
             
             // 進入讀取狀態
             btn.innerText = "⏳ 雲端運算中...";
             btn.disabled = true;
             resultDiv.style.display = 'none';
 
-            let points = [];
-            let isTSP = false;
-
-            // 定義探索路線陣列
-            if (routeType === 'huwei') {
-                points = [POIs['hsr'], POIs['t_liufang'], POIs['t_chifa'], POIs['hsr']];
-            } else if (routeType === 'beigang') {
-                points = [POIs['hsr'], POIs['t_wude'], POIs['t_chaotian'], POIs['hsr']];
-            } else if (routeType === 'tsp_all') {
-                isTSP = true;
-                // 大滿貫：給定所有廟宇，由演算法決定最佳拜訪順序 (Travelling Salesperson Problem)
-                points = [POIs['hsr'], POIs['t_liufang'], POIs['t_chifa'], POIs['t_nansheng'], POIs['t_fuxing'], POIs['t_wude'], POIs['t_chaotian']];
-            }
-
-            // OSRM 的座標格式是 經度,緯度;經度,緯度...
-            const coords = points.map(p => `${p.coords[0]},${p.coords[1]}`).join(';');
+            // 預設強制高鐵站為起點與終點 (MOOVO 出發與還車)
+            let points = [POIs['hsr']];
             
-            let url = '';
-            if (isTSP) {
-                // 使用 OSRM Trip API 解決 TSP (source=first 代表一定要從高鐵站出發，roundtrip=true 代表要繞回原點)
-                url = `https://router.project-osrm.org/trip/v1/bicycle/${coords}?source=first&roundtrip=true&overview=full&geometries=geojson`;
-            } else {
-                // 使用一般的 Route API 照著我們給的固定順序畫線
-                url = `https://router.project-osrm.org/route/v1/bicycle/${coords}?overview=full&geometries=geojson`;
-            }
+            checkedBoxes.forEach(cb => {
+                points.push(POIs[cb.value]);
+            });
+
+            // 只要有勾選，我們就讓 OSRM Trip API 幫我們算出最佳拜訪順序 (TSP)
+            // source=first 代表強制以第一個點 (高鐵站) 為起點
+            // roundtrip=true 代表最後會自動繞回高鐵站
+            const coords = points.map(p => `${p.coords[0]},${p.coords[1]}`).join(';');
+            const url = `https://router.project-osrm.org/trip/v1/bicycle/${coords}?source=first&roundtrip=true&overview=full&geometries=geojson`;
 
             try {
                 const response = await fetch(url);
@@ -403,8 +425,8 @@
                     throw new Error("無法規劃路線。");
                 }
 
-                // 取出 GeoJSON 路線圖資
-                const routeData = isTSP ? data.trips[0] : data.routes[0];
+                // 取出 GeoJSON 路線圖資 (Trip API 的結果在 trips 陣列)
+                const routeData = data.trips[0];
                 const geojson = routeData.geometry;
                 
                 // GeoJSON 是 [lon, lat]，Leaflet 畫圖需要 [lat, lon]，因此做翻轉
@@ -426,11 +448,10 @@
                         opacity: 0.8
                     }).addTo(map);
                 } else {
-                    // 若動畫套件載入失敗的防呆機制，用普通的線代替
                     currentRouteLayer = L.polyline(latlngs, {color: '#6ABA01', weight: 6}).addTo(map);
                 }
 
-                // 自動縮放地圖，把整條路線塞進畫面中，並在左邊預留空間給卡片
+                // 自動縮放地圖，把整條路線塞進畫面中
                 map.fitBounds(currentRouteLayer.getBounds(), { paddingBottomRight: [50, 50], paddingTopLeft: [50, 50] });
 
                 // 計算距離與時間
@@ -438,7 +459,7 @@
                 // OSRM 腳踏車預設時速大約 15km/h，duration 單位為秒
                 const durationMin = Math.round(routeData.duration / 60);
 
-                let tspNotice = isTSP ? `<br><span style="color:#e91e63; font-weight:bold;">★ AI 已為您啟動 TSP 最佳化排列！</span>` : "";
+                let tspNotice = `<br><span style="color:#e91e63; font-weight:bold;">★ AI 已為您排定最佳拜訪順序！</span>`;
 
                 resultDiv.innerHTML = `
                     <strong style="font-size: 16px;">✨ 導航路徑規劃完成</strong>
@@ -452,11 +473,11 @@
 
             } catch (error) {
                 console.error("Routing Error: ", error);
-                resultDiv.innerHTML = `<span style="color:red;">⚠️ 雲端路徑引擎忙碌中，請稍後再試。</span>`;
+                resultDiv.innerHTML = `<span style="color:#d32f2f; font-weight:bold;">⚠️ 雲端路徑引擎忙碌中，請稍後再試。</span>`;
                 resultDiv.style.display = 'block';
             } finally {
                 // 還原按鈕狀態
-                btn.innerText = "🗺️ 規劃一筆畫單車路徑";
+                btn.innerText = "AI 計算最順路線";
                 btn.disabled = false;
             }
         }
