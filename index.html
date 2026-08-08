@@ -636,7 +636,7 @@
     // 利用 PapaParse 非同步載入 CSV 資料
     async function loadFoodData() {
         return new Promise((resolve) => {
-            Papa.parse('雲林100碗統整名單.csv', {
+            Papa.parse('100.csv', {
                 download: true,
                 header: true,
                 skipEmptyLines: true,
@@ -655,7 +655,7 @@
                     resolve();
                 },
                 error: function(err) {
-                    console.warn("⚠️ CSV 載入失敗，請確認檔名與路徑是否為 雲林100碗統整名單.csv", err);
+                    console.warn("⚠️ CSV 載入失敗，請確認檔名與路徑是否為 100.csv", err);
                     loaded100Bowls = []; 
                     resolve();
                 }
