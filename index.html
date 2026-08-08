@@ -642,7 +642,6 @@
                 skipEmptyLines: true,
                 complete: function(results) {
                     loaded100Bowls = results.data.map(row => {
-                        // 彈性對應常見的中文欄位名稱
                         return {
                             name: row['店名'] || row['名稱'] || row['餐廳名稱'] || row['name'] || "在地美食",
                             item: row['品項'] || row['推薦美食'] || row['菜名'] || row['item'] || "特色小吃",
