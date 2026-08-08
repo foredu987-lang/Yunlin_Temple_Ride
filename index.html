@@ -289,6 +289,9 @@
             <label><input type="checkbox" class="poi-cb" value="t_chaotian"> ⛩️ 北港朝天宮</label>
             <label><input type="checkbox" class="poi-cb" value="t_nansheng"> ⛩️ 斗六南聖宮</label>
         </div>
+        <div style="font-size: 11px; color: #888; margin-bottom: 12px; line-height: 1.5; padding: 0 4px;">
+            * 註：目前依照 MOOVO 站點分佈與電輔車續航範圍規劃，精選此 6 間指標廟宇做為主要參訪點。
+        </div>
         <button id="calcBtn" onclick="calculateRoute()">AI 計算最順路線</button>
         <div id="routeResult" class="route-result"></div>
     </div>
@@ -338,6 +341,12 @@
         // 依照您先前的提醒，確認持法媽祖為 [120.4617, 23.7389]，六房媽紅壇為 [120.4431, 23.7121]
         const POIs = {
             "hsr": { id: "hsr", name: "雲林高鐵站", type: "station", coords: [120.3937, 23.7360], desc: "MOOVO 租借與起點" },
+            // 準備擴充的 MOOVO 站點群 (可依此格式無限新增)
+            "s_douliu": { id: "s_douliu", name: "斗六火車站", type: "station", coords: [120.5408, 23.7118], desc: "MOOVO 租借站" },
+            "s_dounan": { id: "s_dounan", name: "斗南火車站", type: "station", coords: [120.4820, 23.6738], desc: "MOOVO 租借站" },
+            "s_huweisugar": { id: "s_huweisugar", name: "虎尾糖廠", type: "station", coords: [120.4344, 23.7056], desc: "MOOVO 租借站" },
+            "s_yungov": { id: "s_yungov", name: "雲林縣政府", type: "station", coords: [120.5258, 23.6991], desc: "MOOVO 租借站" },
+            // 廟宇資料
             "t_chaotian": { id: "t_chaotian", name: "北港朝天宮", type: "temple", coords: [120.3019, 23.5681], desc: "天上聖母 (北港媽)" },
             "t_wude": { id: "t_wude", name: "北港武德宮", type: "temple", coords: [120.3033, 23.5831], desc: "天官武財神" },
             "t_fuxing": { id: "t_fuxing", name: "西螺福興宮", type: "temple", coords: [120.4632, 23.8016], desc: "天上聖母 (太平媽)" },
@@ -364,7 +373,27 @@
         // 3. 在地圖上放置標記
         for (const key in POIs) {
             const poi = POIs[key];
-            const marker = L.marker([poi.coords[1], poi.coords[0]]);
+
+            // 建立圖標設計：依據類型分配不同的顏色與 Emoji
+            let iconHtml = "📍";
+            let bgColor = "#333";
+            if (poi.type === 'temple') {
+                iconHtml = "⛩️";
+                bgColor = "#E53935"; // 廟宇：紅色
+            } else if (poi.type === 'station') {
+                iconHtml = "🚲";
+                bgColor = "#6ABA01"; // MOOVO站點：綠色
+            }
+
+            const customIcon = L.divIcon({
+                html: `<div style="background-color: ${bgColor}; width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 3px 6px rgba(0,0,0,0.3);">${iconHtml}</div>`,
+                className: '', // 清除預設樣式
+                iconSize: [30, 30],
+                iconAnchor: [15, 15] // 讓大頭針的中心點對準座標
+            });
+            
+            // 載入自訂圖示
+            const marker = L.marker([poi.coords[1], poi.coords[0]], { icon: customIcon });
             
             if (poi.type === 'temple') {
                 marker.bindPopup(`
