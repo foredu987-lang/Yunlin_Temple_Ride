@@ -9,7 +9,9 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     
+    <!-- 引入地理運算 Turf.js 與 CSV 解析器 PapaParse -->
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
     <style>
         :root {
@@ -41,7 +43,69 @@
         header p { margin: 4px 0 0 0; font-size: 0.85rem; color: #aaa; }
 
         .map-wrapper { position: relative; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; }
-        #map { flex-grow: 1; width: 100%; height: 100%; z-index: 1; }
+        #map { flex-grow: 1; width: 100%; height: 100%; z-index: 1; position: absolute; top: 0; bottom: 0; left: 0; right: 0;}
+
+        /* ====================================================
+           正上方橫向工具列
+           ==================================================== */
+        .top-toolbar {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+            pointer-events: none; 
+        }
+        .top-toolbar > * { pointer-events: auto; }
+
+        .toolbar-info-box {
+            background: rgba(252, 231, 243, 0.95);
+            border: 1px solid #fbcfe8;
+            border-left: 4px solid var(--food-pink);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #be185d;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .service-btn-group {
+            display: flex;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            border: 1px solid var(--border-color);
+            padding: 4px;
+            backdrop-filter: blur(4px);
+            gap: 4px;
+        }
+
+        .service-toggle-label {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .service-toggle-label:hover { background: #f1f5f9; }
+        .service-toggle-label input { display: none; } 
+        
+        .service-toggle-label.conv input:checked + span { color: #FFB300; }
+        .service-toggle-label.toilet input:checked + span { color: #00ACC1; }
+        .service-toggle-label.water input:checked + span { color: #039BE5; }
+        .service-toggle-label.bike input:checked + span { color: #8D6E63; }
+        .service-toggle-label input:checked + span { text-shadow: 0 0 1px currentColor; }
 
         /* ====================================================
            主控制面板 (強制釘在右上角)
@@ -116,27 +180,34 @@
 
         .weather-widget { background: #f0f9ff; border-radius: 8px; padding: 10px; text-align: center; font-weight: 600; color: #0284c7; font-size: 0.9rem; border: 1px solid #e0f2fe; }
 
-        select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.95rem; background-color: white; cursor: pointer; }
         .btn-route { width: 100%; padding: 12px; border: none; border-radius: 8px; background: var(--moovo-green); color: white; cursor: pointer; font-weight: bold; font-size: 1rem; transition: background 0.3s; }
         .btn-route:hover { background: var(--moovo-dark); }
         #route-info { font-size: 0.85rem; line-height: 1.5; background: #f1f8e9; padding: 12px; border-radius: 8px; border-left: 4px solid var(--moovo-green); display: none; margin-top: 5px; }
 
-        /* 膠囊按鈕設計 (Pill UI) */
-        .pill-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-        .ui-pill-toggle { cursor: pointer; display: inline-block; }
-        .ui-pill-toggle input[type="checkbox"] { display: none; }
-        .ui-pill {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 6px 12px; border-radius: 20px;
-            border: 1px solid #cbd5e1; background: #f8fafc;
-            font-size: 0.85rem; font-weight: 600; color: #64748b;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        /* 傳統方塊打勾 (Checkbox) */
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .ui-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: var(--text-main);
+            padding: 4px 0;
             user-select: none;
         }
-        .ui-pill:hover { background: #e2e8f0; }
-        .ui-pill-toggle input[type="checkbox"]:checked + .ui-pill {
-            background-color: var(--moovo-green); color: white; border-color: var(--moovo-dark);
-            box-shadow: 0 2px 8px rgba(76,175,80,0.3);
+        .ui-checkbox-label:hover {
+            color: var(--moovo-dark);
+        }
+        .ui-checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--moovo-green);
         }
 
         .btn-sos {
@@ -149,12 +220,12 @@
         .btn-sos:hover { background: #b71c1c; transform: translateY(-2px); }
 
         /* ====================================================
-           左側 Story Card 深度互動面板 (Side Panel)
+           左側 Story Card 深度互動面板
            ==================================================== */
         .story-card-drawer {
             position: absolute;
             top: 50%;
-            left: -450px; /* 預設隱藏在畫面左側外 */
+            left: -450px; 
             transform: translateY(-50%);
             width: 25vw;
             min-width: 320px;
@@ -208,7 +279,6 @@
         .sc-btn-primary { background: #4CAF50; color: white; }
         .sc-btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
 
-        /* Leaflet Popup 優化 */
         .leaflet-popup-content-wrapper { border-radius: 12px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
         .popup-btn { margin-top: 10px; background: #FF9800; color: white; border: none; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; width: 100%; }
         
@@ -217,6 +287,7 @@
         @media (max-width: 768px) {
             .story-card-drawer { width: calc(100% - 40px); height: 80vh; left: 20px !important; bottom: -100%; top: auto; transform: none; transition: bottom 0.4s; }
             .story-card-drawer.open { bottom: 20px; }
+            .top-toolbar { width: 90%; flex-wrap: wrap; justify-content: center; }
         }
     </style>
 </head>
@@ -232,12 +303,35 @@
         <div id="map"></div>
         <div id="loading" class="loading-overlay">⏳ 正在處理您的請求...</div>
         
-        <!-- 展開按鈕 -->
+        <!-- 正上方工具列 -->
+        <div class="top-toolbar">
+            <div class="toolbar-info-box">
+                🍽️ 內建 100 碗雷達：規劃後自動掃描 2 公里
+            </div>
+            <div class="service-btn-group">
+                <label class="service-toggle-label conv">
+                    <input type="checkbox" onchange="TravelServiceManager.toggleService('convenience', this.checked)">
+                    <span>🏪 超商</span>
+                </label>
+                <label class="service-toggle-label toilet">
+                    <input type="checkbox" onchange="TravelServiceManager.toggleService('toilet', this.checked)">
+                    <span>🚻 公廁</span>
+                </label>
+                <label class="service-toggle-label water">
+                    <input type="checkbox" onchange="TravelServiceManager.toggleService('water', this.checked)">
+                    <span>💧 飲水</span>
+                </label>
+                <label class="service-toggle-label bike">
+                    <input type="checkbox" onchange="TravelServiceManager.toggleService('bikeShop', this.checked)">
+                    <span>🚲 車行</span>
+                </label>
+            </div>
+        </div>
+
         <button id="expandBtn" class="toggle-panel-btn" onclick="togglePanel()">
             🧭 展開旅程面板
         </button>
 
-        <!-- 主控制面板 (右上角) -->
         <div class="control-panel" id="controlPanel">
             <div class="panel-header-flex">
                 <span>🧭 旅程指揮中心</span>
@@ -251,45 +345,43 @@
                     <div id="weather-widget" class="weather-widget">⏳ 正在載入氣象...</div>
                 </section>
 
-                <!-- 路線規劃 (TSP) -->
+                <!-- 路線規劃 (TSP) 改為 Checkbox -->
                 <section class="ui-card">
                     <div class="ui-card-title">🗺️ 智慧路線規劃</div>
-                    <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 8px;">
+                    <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 12px;">
                         請勾選您想造訪的廟宇，AI 將自動為您計算最順暢的環狀路線 (起終點為高鐵站)。
                     </div>
-                    <!-- 改為 Checklist 形式 -->
-                    <div class="pill-grid" id="tsp-checklist">
-                        <label class="ui-pill-toggle"><input type="checkbox" value="t_chaotian"><span class="ui-pill">北港朝天宮</span></label>
-                        <label class="ui-pill-toggle"><input type="checkbox" value="t_wude"><span class="ui-pill">北港武德宮</span></label>
-                        <label class="ui-pill-toggle"><input type="checkbox" value="t_fuxing"><span class="ui-pill">西螺福興宮</span></label>
-                        <label class="ui-pill-toggle"><input type="checkbox" value="t_chifa"><span class="ui-pill">虎尾持法媽祖</span></label>
-                        <label class="ui-pill-toggle"><input type="checkbox" value="t_liufang"><span class="ui-pill">六房媽紅壇</span></label>
-                        <label class="ui-pill-toggle"><input type="checkbox" value="t_nansheng"><span class="ui-pill">斗六南聖宮</span></label>
+                    
+                    <div class="checkbox-group" id="tsp-checklist">
+                        <label class="ui-checkbox-label">
+                            <input type="checkbox" value="t_chaotian" checked> <span>北港朝天宮</span>
+                        </label>
+                        <label class="ui-checkbox-label">
+                            <input type="checkbox" value="t_wude" checked> <span>北港武德宮</span>
+                        </label>
+                        <label class="ui-checkbox-label">
+                            <input type="checkbox" value="t_fuxing"> <span>西螺福興宮</span>
+                        </label>
+                        <label class="ui-checkbox-label">
+                            <input type="checkbox" value="t_chifa" checked> <span>虎尾持法媽祖</span>
+                        </label>
+                        <label class="ui-checkbox-label">
+                            <input type="checkbox" value="t_liufang"> <span>六房媽紅壇</span>
+                        </label>
+                        <label class="ui-checkbox-label">
+                            <input type="checkbox" value="t_nansheng"> <span>斗六南聖宮</span>
+                        </label>
                     </div>
+
                     <button class="btn-route" style="margin-top:10px;" onclick="calculateTSPRoute()">✨ 計算最佳路線</button>
                     <div id="route-error" style="color: #D32F2F; font-size: 0.8rem; display: none; margin-top: 5px;">請至少勾選一間廟宇！</div>
                     <div id="route-info"></div>
-                </section>
-
-                <!-- 沿途補給服務 -->
-                <section class="ui-card">
-                    <div class="ui-card-title">🧳 沿途旅行服務</div>
-                    <div style="font-size: 0.8rem; color: #be185d; background: #fce7f3; padding: 8px; border-radius: 8px; margin-bottom: 8px;">
-                        🍽️ 導航時將自動掃描路線 2 公里內的「雲林 100 碗」美食！
-                    </div>
-                    <div class="pill-grid">
-                        <label class="ui-pill-toggle"><input type="checkbox" onchange="TravelServiceManager.toggleService('convenience', this.checked)"><span class="ui-pill">🏪 超商/超市</span></label>
-                        <label class="ui-pill-toggle"><input type="checkbox" onchange="TravelServiceManager.toggleService('toilet', this.checked)"><span class="ui-pill">🚻 公共廁所</span></label>
-                        <label class="ui-pill-toggle"><input type="checkbox" onchange="TravelServiceManager.toggleService('water', this.checked)"><span class="ui-pill">💧 飲水站</span></label>
-                        <label class="ui-pill-toggle"><input type="checkbox" onchange="TravelServiceManager.toggleService('bikeShop', this.checked)"><span class="ui-pill">🚲 單車行</span></label>
-                    </div>
                 </section>
 
                 <button id="sosBtn" class="btn-sos" onclick="toggleSOSMode()">🆘 啟動 SOS 救援雷達</button>
             </div>
         </div>
 
-        <!-- 左側 Story Card 面板 -->
         <div id="story-card-container" class="story-card-drawer"></div>
 
     </div>
@@ -308,8 +400,8 @@
     let currentPathLayer = null;
     let currentRouteTurfLine = null;
     let dynamicFoodLayer = null;
+    let loaded100Bowls = []; 
     
-    // 定義所有重要站點
     const POIs = {
         "hsr": { name: "雲林高鐵站", type: "station", coords: [120.3929, 23.7371], desc: "MOOVO 租借與歸還點" },
         "t_chaotian": { name: "北港朝天宮", type: "temple", coords: [120.3019, 23.5681], desc: "媽祖信仰中心" },
@@ -318,17 +410,9 @@
         "t_nansheng": { name: "斗六南聖宮", type: "temple", coords: [120.5564, 23.6933], desc: "恩主公信仰中心" },
         "t_chifa": { name: "虎尾持法媽祖宮", type: "temple", coords: [120.4617, 23.7389], desc: "全台最美文風媽祖廟" },
         "t_liufang": { name: "六房媽紅壇", type: "temple", coords: [120.4431, 23.7121], desc: "無固定廟宇之媽祖信仰" },
-        // 擴充 MOOVO 站點範例
         "m_douliu": { name: "斗六火車站", type: "moovo", coords: [120.5412, 23.7125], desc: "MOOVO 租借站" },
         "m_huwei": { name: "虎尾糖廠", type: "moovo", coords: [120.4345, 23.7025], desc: "MOOVO 租借站" }
     };
-
-    const builtIn100Bowls = [
-        { name: "老受鴨肉飯", item: "鴨肉飯", address: "北港鎮中山路104號", lat: 23.5675, lng: 120.3015 },
-        { name: "珍的西螺麻糬", item: "麻糬", address: "西螺鎮建興路262號", lat: 23.8000, lng: 120.4610 },
-        { name: "樂包子", item: "鮮肉包", address: "虎尾鎮林森路二段25號", lat: 23.7121, lng: 120.4362 },
-        { name: "怪人花枝鱔魚麵", item: "花枝麵", address: "土庫鎮中正路144號", lat: 23.6788, lng: 120.3488 }
-    ];
 
     const travelServices = { convenience: null, toilet: null, water: null, bikeShop: null };
     const serviceConfig = {
@@ -339,13 +423,13 @@
     };
     const fallbackServiceData = {
         convenience: [{ lat: 23.7350, lng: 120.3940, name: "7-ELEVEN 高鐵站門市" }],
-        toilet: [{ lat: 23.7365, lng: 120.3935, name: "雲林高鐵站 公共廁所" }],
+        toilet: [{ lat: 23.7365, lng: 120.3935, name: "雲林高鐵站 公共廁所" }, { lat: 23.5681, lng: 120.3019, name: "朝天宮 香客大樓廁所" }],
         water: [{ lat: 23.7362, lng: 120.3938, name: "高鐵站 飲水機" }],
         bikeShop: [{ lat: 23.7073, lng: 120.4325, name: "捷安特 虎尾單車館" }]
     };
 
     // =========================================================================
-    // 2. 核心功能庫：Story Card 與 JSON 串接
+    // 2. 核心功能庫：Story Card 
     // =========================================================================
     const StoryPOIManager = {
         fetchStoryData: async function(poiId) {
@@ -361,7 +445,6 @@
                     must_see: (data.travel?.photoSpot || []).join('、') || "特色建築",
                     stay_time: data.travel?.stayTime || "30 分鐘",
                     gallery: (data.government?.images || []).map(url => {
-                        // 防呆修復：自動去掉前方的 ./ 或 /
                         let safeUrl = url;
                         if (safeUrl.startsWith('./')) safeUrl = safeUrl.substring(2);
                         else if (safeUrl.startsWith('/') && !safeUrl.startsWith('//')) safeUrl = safeUrl.substring(1);
@@ -423,13 +506,18 @@
     };
 
     // =========================================================================
-    // 3. 路線計算 (TSP)
+    // 3. 路線計算 (TSP) 與 CSV 解析
     // =========================================================================
     async function calculateTSPRoute() {
         const checkboxes = document.querySelectorAll('#tsp-checklist input[type="checkbox"]:checked');
         const errorEl = document.getElementById('route-error');
         const infoEl = document.getElementById('route-info');
         const loadingEl = document.getElementById('loading');
+
+        if (loaded100Bowls.length === 0) {
+             alert("⚠️ 系統尚未完成美食資料載入，請稍候幾秒再試！");
+             return;
+        }
 
         if (checkboxes.length === 0) {
             errorEl.style.display = 'block';
@@ -439,23 +527,35 @@
         errorEl.style.display = 'none';
         loadingEl.style.display = 'flex';
         
-        // 永遠從高鐵站出發
         let points = [POIs["hsr"].coords];
         checkboxes.forEach(cb => { points.push(POIs[cb.value].coords); });
         
-        // 如果勾選超過1個點，要形成環狀回到高鐵站
-        if(points.length > 2) points.push(POIs["hsr"].coords);
-
         const coordsString = points.map(p => `${p[0]},${p[1]}`).join(';');
-        const url = `https://router.project-osrm.org/route/v1/bicycle/${coordsString}?overview=full&geometries=geojson`;
+        let url = '';
+        
+        if (points.length > 2) {
+            url = `https://router.project-osrm.org/trip/v1/bicycle/${coordsString}?roundtrip=true&source=first&geometries=geojson`;
+        } else {
+            url = `https://router.project-osrm.org/route/v1/bicycle/${coordsString};${points[0][0]},${points[0][1]}?overview=full&geometries=geojson`;
+        }
 
         try {
             const response = await fetch(url);
             const data = await response.json();
             
-            if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) throw new Error('API 無法規劃路線');
+            if (data.code !== 'Ok') throw new Error('API 無法規劃路線');
             
-            const routeGeoJSON = data.routes[0].geometry;
+            let routeGeoJSON, distKm, timeMin;
+            if(points.length > 2) {
+                routeGeoJSON = data.trips[0].geometry;
+                distKm = (data.trips[0].distance / 1000).toFixed(1);
+                timeMin = Math.round(data.trips[0].duration / 60);
+            } else {
+                routeGeoJSON = data.routes[0].geometry;
+                distKm = (data.routes[0].distance / 1000).toFixed(1);
+                timeMin = Math.round(data.routes[0].duration / 60);
+            }
+
             const flippedCoords = routeGeoJSON.coordinates.map(c => [c[1], c[0]]);
 
             if (currentPathLayer) map.removeLayer(currentPathLayer);
@@ -468,26 +568,29 @@
 
             map.fitBounds(currentPathLayer.getBounds(), { padding: [40, 40] });
 
-            // 更新雷達與美食
             currentRouteTurfLine = turf.lineString(routeGeoJSON.coordinates);
             TravelServiceManager.updateMarkers();
             
             dynamicFoodLayer.clearLayers();
             let foundCount = 0;
-            builtIn100Bowls.forEach(food => {
+            
+            loaded100Bowls.forEach(food => {
                 const pt = turf.point([food.lng, food.lat]);
                 if (turf.pointToLineDistance(pt, currentRouteTurfLine, {units: 'kilometers'}) <= 2.0) {
                     foundCount++;
-                    const icon = L.divIcon({ html: `<div style="background:var(--food-pink); width:24px; height:24px; border-radius:50%; border:2px solid white; display:flex; align-items:center; justify-content:center; font-size:12px; color:white;">😋</div>`, className: '', iconSize: [24,24] });
-                    L.marker([food.lat, food.lng], {icon}).bindPopup(`<b>${food.name}</b><br>推薦：${food.item}`).addTo(dynamicFoodLayer);
+                    const icon = L.divIcon({ html: `<div style="background:var(--food-pink); width:24px; height:24px; border-radius:50%; border:2px solid white; display:flex; align-items:center; justify-content:center; font-size:12px; color:white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">😋</div>`, className: '', iconSize: [24,24] });
+                    L.marker([food.lat, food.lng], {icon}).bindPopup(`
+                        <div style="font-size:0.75rem; color:var(--food-pink); font-weight:bold; margin-bottom: 3px;">百碗美食雷達</div>
+                        <b style="font-size:1.1rem; color:#333;">${food.name}</b><br>
+                        <div style="margin-top:5px; color:#c2185b; font-weight:bold;">🏆 推薦：${food.item}</div>
+                        <div style="margin-top:3px; color:#666; font-size:0.85rem;">📍 ${food.address}</div>
+                        <button onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${food.lat},${food.lng}')" style="margin-top:10px; width: 100%; text-align: center; background: #f0f0f0; border: 1px solid #ccc; color: #333; padding: 6px 0; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold;">🗺️ Google 導航</button>
+                    `).addTo(dynamicFoodLayer);
                 }
             });
 
-            const distKm = (data.routes[0].distance / 1000).toFixed(1);
-            const timeMin = Math.round(data.routes[0].duration / 60);
-
             infoEl.innerHTML = `
-                ✨ <b>最佳路線計算完成！</b><br>
+                ✨ <b style="color: #388E3C;">最佳路線計算完成！</b><br>
                 📏 總長度：${distKm} 公里<br>
                 🚴 預估時間：${timeMin} 分鐘<br>
                 <div style="color:#c2185b; font-weight:bold; margin-top:5px;">🎯 掃描到路線周遭有 ${foundCount} 家百碗美食！</div>
@@ -502,7 +605,7 @@
     }
 
     // =========================================================================
-    // 4. 初始化與管理
+    // 4. 初始化與 CSV 載入
     // =========================================================================
     const TravelServiceManager = {
         init: function() {
@@ -530,7 +633,38 @@
         }
     };
 
-    function initApp() {
+    // 利用 PapaParse 非同步載入 CSV 資料
+    async function loadFoodData() {
+        return new Promise((resolve) => {
+            Papa.parse('雲林100碗統整名單.csv', {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    loaded100Bowls = results.data.map(row => {
+                        // 彈性對應常見的中文欄位名稱
+                        return {
+                            name: row['店名'] || row['名稱'] || row['餐廳名稱'] || row['name'] || "在地美食",
+                            item: row['品項'] || row['推薦美食'] || row['菜名'] || row['item'] || "特色小吃",
+                            address: row['地址'] || row['address'] || "雲林縣",
+                            lat: parseFloat(row['緯度'] || row['Lat'] || row['lat']),
+                            lng: parseFloat(row['經度'] || row['Lng'] || row['lng'])
+                        };
+                    }).filter(food => !isNaN(food.lat) && !isNaN(food.lng));
+                    
+                    console.log("✅ 成功載入 CSV 百碗美食名單，共 " + loaded100Bowls.length + " 筆。");
+                    resolve();
+                },
+                error: function(err) {
+                    console.warn("⚠️ CSV 載入失敗，請確認檔名與路徑是否為 雲林100碗統整名單.csv", err);
+                    loaded100Bowls = []; 
+                    resolve();
+                }
+            });
+        });
+    }
+
+    async function initApp() {
         try {
             map = L.map('map', { zoomControl: false }).setView([23.71, 120.43], 12);
             L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -542,7 +676,6 @@
             dynamicFoodLayer = L.layerGroup().addTo(map);
             TravelServiceManager.init();
 
-            // 放置 POIs
             Object.values(POIs).forEach(poi => {
                 let color = "var(--spot-blue)"; let iconText = "📍";
                 if(poi.type === 'temple') { color = "var(--temple-red)"; iconText = "⛩️"; }
@@ -565,11 +698,13 @@
                 markersCluster.addLayer(marker);
             });
 
-            // 簡易氣象
             fetch(`https://api.open-meteo.com/v1/forecast?latitude=23.73&longitude=120.39&current_weather=true&timezone=Asia/Taipei`)
                 .then(res => res.json())
                 .then(data => { document.getElementById('weather-widget').innerHTML = `🌤️ 雲林即時氣溫：${data.current_weather.temperature}°C`; })
                 .catch(() => { document.getElementById('weather-widget').innerHTML = "⚠️ 氣象載入失敗"; });
+
+            // 啟動時自動載入 CSV
+            await loadFoodData();
 
         } catch (e) {
             console.error("Initialization Failed:", e);
@@ -587,13 +722,13 @@
         }
     }
 
-    // 啟動
     if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initApp); } 
     else { initApp(); }
 
 </script>
 </body>
 </html>
+
 
 
 
