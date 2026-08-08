@@ -248,7 +248,6 @@
         }
 
         // 動態讀取 JSON 並顯示卡片
-        // 動態讀取 JSON 並顯示卡片
         async function showStoryCard(poiId) {
             const poi = POIs[poiId];
             if(!poi) return;
@@ -294,14 +293,14 @@
                     cardImageEl.src = imgUrl;
                 }
                 
-                // --- 圖片版權來源 (已修正位置，放進 try 區塊內) ---
+                // --- 圖片版權來源 ---
                 if (data.government && data.government.imageSource) {
                     document.getElementById('cardImageSource').innerText = data.government.imageSource;
                 } else {
                     document.getElementById('cardImageSource').innerText = "";
                 }
                 
-            } catch (error) { // catch 現在正確地緊接在 try 的大括號後面了！
+            } catch (error) {
                 console.warn(`${poiId}.json 尚未建置，啟用防呆顯示。`);
                 document.getElementById('cardAddress').innerText = "雲林縣 (詳細地址建置中)";
                 document.getElementById('cardStory').innerText = "這是雲林在地的重要信仰中心。此處的詳細導覽文史資料正在建置中，敬請期待未來的更新！";
