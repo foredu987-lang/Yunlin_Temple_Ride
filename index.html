@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>雲林祈福鐵馬道 (智慧導覽版)</title>
     
-    <!-- Leaflet 核心 CSS -->
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- MarkerCluster 叢集 CSS -->
+    <!-- MarkerCluster CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     
@@ -17,35 +17,98 @@
         #map { height: 100vh; width: 100vw; z-index: 1; }
 
         /* ====================================================
+           右上角：路線指揮中心 (Control Panel)
+           ==================================================== */
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            width: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .control-panel h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-panel select {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 14px;
+            outline: none;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .control-panel button {
+            background: #6ABA01;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .control-panel button:hover { background: #559600; }
+        .control-panel button:active { transform: scale(0.98); }
+        .control-panel button:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* 路線結果資訊框 */
+        .route-result {
+            background: #f1f8e9;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #333;
+            line-height: 1.6;
+            border-left: 4px solid #6ABA01;
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        /* ====================================================
            Story Card 左側懸浮面板設計 (Side Panel)
            ==================================================== */
         .story-card-container {
             position: absolute;
             top: 50%;
             left: -450px; /* 預設隱藏在畫面左側外 */
-            transform: translateY(-50%); /* 垂直置中 */
+            transform: translateY(-50%);
             
-            width: 28vw; /* 螢幕寬度比例 */
+            width: 25vw;
             min-width: 320px;
             max-width: 400px;
-            height: 85vh; /* 高度佔螢幕 85% */
+            height: 85vh;
             
             background: #ffffff;
-            border-radius: 16px; /* 四角圓角 */
+            border-radius: 16px;
             box-shadow: 5px 10px 30px rgba(0,0,0,0.25);
-            transition: left 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1); /* 帶有彈性的滑出動畫 */
+            transition: left 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1);
             z-index: 9999;
             display: flex;
             flex-direction: column;
-            overflow: hidden; /* 確保內容不會超出圓角 */
+            overflow: hidden;
         }
 
-        /* 當面板被觸發顯示時的 Class */
-        .story-card-container.active {
-            left: 20px; /* 從左側滑入，距離左邊緣 20px */
-        }
+        .story-card-container.active { left: 20px; }
 
-        /* 關閉按鈕 (在圖片右上角的圓形懸浮按鈕) */
         .close-btn {
             position: absolute;
             right: 15px;
@@ -68,16 +131,12 @@
             transition: background 0.2s, transform 0.2s;
         }
 
-        .close-btn:hover {
-            background: #ffffff;
-            transform: scale(1.1);
-        }
+        .close-btn:hover { background: #ffffff; transform: scale(1.1); }
 
-        /* 圖片區域 */
         .story-card-image-wrapper {
             position: relative;
             width: 100%;
-            height: 240px; /* 圖片高度 */
+            height: 240px;
             flex-shrink: 0;
             background-color: #f5f5f5;
         }
@@ -85,7 +144,7 @@
         .story-card-image-wrapper img {
             width: 100%;
             height: 100%;
-            object-fit: cover; /* 完美裁切不變形 */
+            object-fit: cover;
             display: block;
         }
 
@@ -100,7 +159,6 @@
             border-top-left-radius: 8px;
         }
 
-        /* 內容捲動區 */
         .story-card-scroll-area {
             flex-grow: 1;
             overflow-y: auto;
@@ -130,7 +188,6 @@
             border-radius: 20px;
         }
 
-        /* 頁籤設計 */
         .card-tabs {
             display: flex;
             background: #f1f5f9;
@@ -152,42 +209,17 @@
             transition: all 0.2s ease;
         }
 
-        .tab-btn.active {
-            background: #ffffff;
-            color: #6ABA01;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
+        .tab-btn.active { background: #ffffff; color: #6ABA01; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
 
-        .tab-content {
-            display: none;
-            line-height: 1.8;
-            color: #475569;
-            font-size: 15px;
-            text-align: justify;
-        }
-
-        .tab-content.active {
-            display: block;
-            animation: fadeIn 0.3s ease-in-out;
-        }
+        .tab-content { display: none; line-height: 1.8; color: #475569; font-size: 15px; text-align: justify; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
 
         .info-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 15px;
+            list-style: none; padding: 0; margin: 0; background: #f8fafc;
+            border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px;
         }
 
-        .info-list li {
-            margin-bottom: 12px;
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-        }
-        
+        .info-list li { margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px; }
         .info-list li:last-child { margin-bottom: 0; }
 
         @keyframes fadeIn {
@@ -195,28 +227,24 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* ====================================================
-           RWD: 手機版自動調整為底部彈出
-           ==================================================== */
+        /* RWD: 手機版調整 */
         @media (max-width: 768px) {
             .story-card-container {
                 width: calc(100% - 30px);
                 max-width: none;
                 height: 80vh;
-                left: 15px;
+                left: 15px !important;
                 bottom: -100%;
                 top: auto;
                 transform: none;
                 transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1);
             }
-            .story-card-container.active {
-                bottom: 15px;
-                left: 15px; 
-            }
-            .story-card-image-wrapper { height: 200px; }
+            .story-card-container.active { bottom: 15px; }
+            .control-panel { top: auto; bottom: 20px; right: 15px; width: calc(100% - 30px); }
+            /* 在手機版縮小地圖時，隱藏控制面板避免重疊 */
+            .story-card-container.active ~ .control-panel { display: none; } 
         }
         
-        /* 覆寫 Leaflet Popup 樣式使其更美觀 */
         .leaflet-popup-content-wrapper { border-radius: 12px; }
         .leaflet-popup-content { margin: 15px; }
     </style>
@@ -226,31 +254,37 @@
     <!-- 地圖容器 -->
     <div id="map"></div>
 
-    <!-- Story Card 懸浮面板 -->
+    <!-- 右上角：路線指揮中心 -->
+    <div class="control-panel" id="routingPanel">
+        <h3>🗺️ 雲林智慧騎乘規劃</h3>
+        <select id="routeSelector">
+            <option value="huwei">🚲 虎尾雙媽輕鬆騎 (高鐵出發)</option>
+            <option value="beigang">🚲 北港雙神朝聖線 (高鐵出發)</option>
+            <option value="tsp_all">🌟 雲林大滿貫 (TSP 最佳化計算)</option>
+        </select>
+        <button id="calcBtn" onclick="calculateRoute()">開始規劃路線</button>
+        <div id="routeResult" class="route-result"></div>
+    </div>
+
+    <!-- 左側：Story Card 懸浮面板 -->
     <div id="storyCard" class="story-card-container">
-        
-        <!-- 關閉按鈕 -->
         <button id="closeCardBtn" class="close-btn">×</button>
         
-        <!-- 頂部圖片區 -->
         <div class="story-card-image-wrapper">
             <img id="cardImage" src="" alt="景點圖片">
             <div id="cardImageSource"></div>
         </div>
         
-        <!-- 內容捲動區 -->
         <div class="story-card-scroll-area">
             <div class="story-card-body">
                 <h2 id="cardTitle" class="card-title">載入中...</h2>
                 <div id="cardSubtitle" class="card-subtitle">...</div>
                 
-                <!-- 資訊頁籤按鈕 -->
                 <div class="card-tabs">
                     <button class="tab-btn active" onclick="switchTab('story', event)">在地故事</button>
                     <button class="tab-btn" onclick="switchTab('info', event)">導覽資訊</button>
                 </div>
                 
-                <!-- 頁籤內容區 -->
                 <div id="tab-story" class="tab-content active">
                     <p id="cardStory">故事讀取中，請稍候...</p>
                 </div>
@@ -265,24 +299,27 @@
         </div>
     </div>
 
-    <!-- Leaflet 核心 JS -->
+    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- MarkerCluster 叢集 JS -->
+    <!-- MarkerCluster JS -->
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <!-- Leaflet Ant Path (動畫路線套件) -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.min.js"></script>
     
     <script>
-        // 1. 定義地標資料 (高鐵站 + 6 大指標廟宇)
+        // 1. 定義地標資料 
+        // 依照您先前的提醒，確認持法媽祖為 [120.4617, 23.7389]，六房媽紅壇為 [120.4431, 23.7121]
         const POIs = {
             "hsr": { id: "hsr", name: "雲林高鐵站", type: "station", coords: [120.3937, 23.7360], desc: "MOOVO 租借與起點" },
             "t_chaotian": { id: "t_chaotian", name: "北港朝天宮", type: "temple", coords: [120.3019, 23.5681], desc: "天上聖母 (北港媽)" },
             "t_wude": { id: "t_wude", name: "北港武德宮", type: "temple", coords: [120.3033, 23.5831], desc: "天官武財神" },
             "t_fuxing": { id: "t_fuxing", name: "西螺福興宮", type: "temple", coords: [120.4632, 23.8016], desc: "天上聖母 (太平媽)" },
             "t_nansheng": { id: "t_nansheng", name: "斗六南聖宮", type: "temple", coords: [120.5564, 23.6933], desc: "關聖帝君 (恩主公)" },
-            "t_chifa": { id: "t_chifa", name: "虎尾持法媽祖宮", type: "temple", coords: [120.4431, 23.7121], desc: "全台最美文風媽祖廟" },
-            "t_liufang": { id: "t_liufang", name: "六房媽紅壇", type: "temple", coords: [120.4617, 23.7389], desc: "六房天上聖母 (無固定廟宇)" }
+            "t_chifa": { id: "t_chifa", name: "虎尾持法媽祖宮", type: "temple", coords: [120.4617, 23.7389], desc: "全台最美文風媽祖廟" },
+            "t_liufang": { id: "t_liufang", name: "六房媽紅壇", type: "temple", coords: [120.4431, 23.7121], desc: "六房天上聖母 (無固定廟宇)" }
         };
 
-        // 2. 初始化地圖
+        // 2. 初始化地圖 (將縮放控制按鈕移到右下角，避免擋住路線面板)
         const map = L.map('map', { zoomControl: false }).setView([23.7000, 120.4200], 11);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -291,20 +328,18 @@
             maxZoom: 18
         }).addTo(map);
 
-        // --- 建立標記叢集群組 ---
+        // 建立標記叢集群組
         const markersCluster = L.markerClusterGroup({
             maxClusterRadius: 40,
-            disableClusteringAtZoom: 14,
-            spiderfyOnMaxZoom: true
+            disableClusteringAtZoom: 14
         });
 
-        // 3. 放置標記並加入叢集
+        // 3. 在地圖上放置標記
         for (const key in POIs) {
             const poi = POIs[key];
             const marker = L.marker([poi.coords[1], poi.coords[0]]);
             
             if (poi.type === 'temple') {
-                // 手機友善設計：點擊後顯示帶有按鈕的 Popup，不再因為字擠在一起而看不清
                 marker.bindPopup(`
                     <div style="text-align: center; min-width: 140px;">
                         <b style="font-size: 16px; color: #333;">${poi.name}</b><br>
@@ -315,14 +350,120 @@
             } else {
                 marker.bindPopup(`<b>${poi.name}</b><br>${poi.desc}`);
             }
-            
             markersCluster.addLayer(marker);
         }
-        
-        // 將叢集群組加到地圖上
         map.addLayer(markersCluster);
 
-        // --- Story Card 互動邏輯 ---
+        // ====================================================
+        // 動態路線與 TSP 引擎模組 (OSRM API)
+        // ====================================================
+        let currentRouteLayer = null; // 用來記錄目前畫在地圖上的線，方便切換時清除
+
+        async function calculateRoute() {
+            const routeType = document.getElementById('routeSelector').value;
+            const btn = document.getElementById('calcBtn');
+            const resultDiv = document.getElementById('routeResult');
+            
+            // 進入讀取狀態
+            btn.innerText = "⏳ 雲端運算中...";
+            btn.disabled = true;
+            resultDiv.style.display = 'none';
+
+            let points = [];
+            let isTSP = false;
+
+            // 定義探索路線陣列
+            if (routeType === 'huwei') {
+                points = [POIs['hsr'], POIs['t_liufang'], POIs['t_chifa'], POIs['hsr']];
+            } else if (routeType === 'beigang') {
+                points = [POIs['hsr'], POIs['t_wude'], POIs['t_chaotian'], POIs['hsr']];
+            } else if (routeType === 'tsp_all') {
+                isTSP = true;
+                // 大滿貫：給定所有廟宇，由演算法決定最佳拜訪順序 (Travelling Salesperson Problem)
+                points = [POIs['hsr'], POIs['t_liufang'], POIs['t_chifa'], POIs['t_nansheng'], POIs['t_fuxing'], POIs['t_wude'], POIs['t_chaotian']];
+            }
+
+            // OSRM 的座標格式是 經度,緯度;經度,緯度...
+            const coords = points.map(p => `${p.coords[0]},${p.coords[1]}`).join(';');
+            
+            let url = '';
+            if (isTSP) {
+                // 使用 OSRM Trip API 解決 TSP (source=first 代表一定要從高鐵站出發，roundtrip=true 代表要繞回原點)
+                url = `https://router.project-osrm.org/trip/v1/bicycle/${coords}?source=first&roundtrip=true&overview=full&geometries=geojson`;
+            } else {
+                // 使用一般的 Route API 照著我們給的固定順序畫線
+                url = `https://router.project-osrm.org/route/v1/bicycle/${coords}?overview=full&geometries=geojson`;
+            }
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.code !== 'Ok') {
+                    throw new Error("無法規劃路線。");
+                }
+
+                // 取出 GeoJSON 路線圖資
+                const routeData = isTSP ? data.trips[0] : data.routes[0];
+                const geojson = routeData.geometry;
+                
+                // GeoJSON 是 [lon, lat]，Leaflet 畫圖需要 [lat, lon]，因此做翻轉
+                const latlngs = geojson.coordinates.map(c => [c[1], c[0]]);
+
+                // 清除舊路線
+                if (currentRouteLayer) {
+                    map.removeLayer(currentRouteLayer);
+                }
+
+                // 畫出帶有虛線流動動畫的線條 (Leaflet.AntPath)
+                if (typeof L.polyline.antPath === 'function') {
+                    currentRouteLayer = L.polyline.antPath(latlngs, {
+                        delay: 1000,           // 流動速度
+                        dashArray: [15, 30],   // 虛線間距
+                        weight: 6,             // 線條粗細
+                        color: "#6ABA01",      // 雲林綠
+                        pulseColor: "#FFFFFF", // 白色流動光
+                        opacity: 0.8
+                    }).addTo(map);
+                } else {
+                    // 若動畫套件載入失敗的防呆機制，用普通的線代替
+                    currentRouteLayer = L.polyline(latlngs, {color: '#6ABA01', weight: 6}).addTo(map);
+                }
+
+                // 自動縮放地圖，把整條路線塞進畫面中，並在左邊預留空間給卡片
+                map.fitBounds(currentRouteLayer.getBounds(), { paddingBottomRight: [50, 50], paddingTopLeft: [50, 50] });
+
+                // 計算距離與時間
+                const distanceKm = (routeData.distance / 1000).toFixed(1);
+                // OSRM 腳踏車預設時速大約 15km/h，duration 單位為秒
+                const durationMin = Math.round(routeData.duration / 60);
+
+                let tspNotice = isTSP ? `<br><span style="color:#e91e63; font-weight:bold;">★ AI 已為您啟動 TSP 最佳化排列！</span>` : "";
+
+                resultDiv.innerHTML = `
+                    <strong style="font-size: 16px;">✨ 導航路徑規劃完成</strong>
+                    ${tspNotice}
+                    <hr style="border: 0; border-top: 1px solid #ddd; margin: 8px 0;">
+                    🚴 估計騎乘距離：<strong>${distanceKm}</strong> 公里<br>
+                    ⏱️ 估計騎乘時間：<strong>${durationMin}</strong> 分鐘<br>
+                    <span style="font-size: 12px; color: #888;">(以 MOOVO 電輔車均速估算，不含停留時間)</span>
+                `;
+                resultDiv.style.display = 'block';
+
+            } catch (error) {
+                console.error("Routing Error: ", error);
+                resultDiv.innerHTML = `<span style="color:red;">⚠️ 雲端路徑引擎忙碌中，請稍後再試。</span>`;
+                resultDiv.style.display = 'block';
+            } finally {
+                // 還原按鈕狀態
+                btn.innerText = "🗺️ 規劃一筆畫單車路徑";
+                btn.disabled = false;
+            }
+        }
+
+        // ====================================================
+        // Story Card UI 切換邏輯 (維持不變)
+        // ====================================================
         document.getElementById('closeCardBtn').addEventListener('click', () => {
             document.getElementById('storyCard').classList.remove('active');
         });
@@ -330,7 +471,6 @@
         function switchTab(tabId, event) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
             event.target.classList.add('active');
             document.getElementById('tab-' + tabId).classList.add('active');
         }
@@ -340,7 +480,6 @@
             if(!poi) return;
             
             document.querySelectorAll('.tab-btn')[0].click();
-
             document.getElementById('cardTitle').innerText = poi.name;
             document.getElementById('cardSubtitle').innerText = poi.desc;
             document.getElementById('cardAddress').innerText = "資料讀取中...";
@@ -350,8 +489,7 @@
             document.getElementById('storyCard').classList.add('active');
 
             try {
-                // 這裡改為乾淨的相對路徑 (images/xxx.jpg 會被正確解析)
-                const response = await fetch(`story/${poiId}.json`);
+                const response = await fetch(`./story/${poiId}.json`);
                 if (!response.ok) throw new Error("無對應的 JSON 檔案"); 
                 
                 const data = await response.json();
