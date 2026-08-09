@@ -514,9 +514,9 @@
         const infoEl = document.getElementById('route-info');
         const loadingEl = document.getElementById('loading');
 
+        // 【終極防呆解鎖】：僅提出 Console 警告，不中斷任何流程
         if (loaded100Bowls.length === 0) {
-             alert("⚠️ 系統尚未完成美食資料載入，請稍候幾秒再試！");
-             return;
+             console.warn("⚠️ 美食 CSV 資料尚未載入或失敗，跳過美食雷達掃描，但仍繼續繪製單車路線！");
         }
 
         if (checkboxes.length === 0) {
@@ -574,31 +574,35 @@
             dynamicFoodLayer.clearLayers();
             let foundCount = 0;
             
-            loaded100Bowls.forEach(food => {
-                const pt = turf.point([food.lng, food.lat]);
-                if (turf.pointToLineDistance(pt, currentRouteTurfLine, {units: 'kilometers'}) <= 2.0) {
-                    foundCount++;
-                    const icon = L.divIcon({ html: `<div style="background:var(--food-pink); width:24px; height:24px; border-radius:50%; border:2px solid white; display:flex; align-items:center; justify-content:center; font-size:12px; color:white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">😋</div>`, className: '', iconSize: [24,24] });
-                    L.marker([food.lat, food.lng], {icon}).bindPopup(`
-                        <div style="font-size:0.75rem; color:var(--food-pink); font-weight:bold; margin-bottom: 3px;">百碗美食雷達</div>
-                        <b style="font-size:1.1rem; color:#333;">${food.name}</b><br>
-                        <div style="margin-top:5px; color:#c2185b; font-weight:bold;">🏆 推薦：${food.item}</div>
-                        <div style="margin-top:3px; color:#666; font-size:0.85rem;">📍 ${food.address}</div>
-                        <button onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${food.lat},${food.lng}')" style="margin-top:10px; width: 100%; text-align: center; background: #f0f0f0; border: 1px solid #ccc; color: #333; padding: 6px 0; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold;">🗺️ Google 導航</button>
-                    `).addTo(dynamicFoodLayer);
-                }
-            });
+            // 安全防禦：如果 loaded100Bowls 陣列有東西，才進行美食掃描
+            if (loaded100Bowls.length > 0) {
+                loaded100Bowls.forEach(food => {
+                    const pt = turf.point([food.lng, food.lat]);
+                    if (turf.pointToLineDistance(pt, currentRouteTurfLine, {units: 'kilometers'}) <= 2.0) {
+                        foundCount++;
+                        const icon = L.divIcon({ html: `<div style="background:var(--food-pink); width:24px; height:24px; border-radius:50%; border:2px solid white; display:flex; align-items:center; justify-content:center; font-size:12px; color:white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">😋</div>`, className: '', iconSize: [24,24] });
+                        L.marker([food.lat, food.lng], {icon}).bindPopup(`
+                            <div style="font-size:0.75rem; color:var(--food-pink); font-weight:bold; margin-bottom: 3px;">百碗美食雷達</div>
+                            <b style="font-size:1.1rem; color:#333;">${food.name}</b><br>
+                            <div style="margin-top:5px; color:#c2185b; font-weight:bold;">🏆 推薦：${food.item}</div>
+                            <div style="margin-top:3px; color:#666; font-size:0.85rem;">📍 ${food.address}</div>
+                            <button onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${food.lat},${food.lng}')" style="margin-top:10px; width: 100%; text-align: center; background: #f0f0f0; border: 1px solid #ccc; color: #333; padding: 6px 0; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold;">🗺️ Google 導航</button>
+                        `).addTo(dynamicFoodLayer);
+                    }
+                });
+            }
 
             infoEl.innerHTML = `
                 ✨ <b style="color: #388E3C;">最佳路線計算完成！</b><br>
                 📏 總長度：${distKm} 公里<br>
                 🚴 預估時間：${timeMin} 分鐘<br>
-                <div style="color:#c2185b; font-weight:bold; margin-top:5px;">🎯 掃描到路線周遭有 ${foundCount} 家百碗美食！</div>
+                ${foundCount > 0 ? `<div style="color:#c2185b; font-weight:bold; margin-top:5px;">🎯 掃描到路線周遭有 ${foundCount} 家百碗美食！</div>` : ''}
             `;
             infoEl.style.display = 'block';
 
         } catch (e) {
             alert("⚠️ 路線伺服器忙碌中，請稍後再試。");
+            console.error(e);
         } finally {
             loadingEl.style.display = 'none';
         }
@@ -633,16 +637,16 @@
         }
     };
 
-    // 利用 PapaParse 非同步載入 CSV 資料
+    // 利用 PapaParse 非同步載入 CSV 資料 (★ 終極修正檔名)
     async function loadFoodData() {
         return new Promise((resolve) => {
+            // ★ 修改為完全對應 GitHub 的檔名
             Papa.parse('100.csv', {
                 download: true,
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
                     loaded100Bowls = results.data.map(row => {
-                        // 彈性對應常見的中文欄位名稱
                         return {
                             name: row['店名'] || row['名稱'] || row['餐廳名稱'] || row['name'] || "在地美食",
                             item: row['品項'] || row['推薦美食'] || row['菜名'] || row['item'] || "特色小吃",
@@ -656,9 +660,9 @@
                     resolve();
                 },
                 error: function(err) {
-                    console.warn("⚠️ CSV 載入失敗，請確認檔名與路徑是否為 雲林100碗統整名單.csv", err);
+                    console.warn("⚠️ CSV 載入失敗 (可能是找不到 100.csv)，但系統將繼續運作。", err);
                     loaded100Bowls = []; 
-                    resolve();
+                    resolve(); // 即便失敗也要 resolve，讓系統不卡死
                 }
             });
         });
