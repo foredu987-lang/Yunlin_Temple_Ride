@@ -637,22 +637,32 @@
         }
     };
 
-    // 利用 PapaParse 非同步載入 CSV 資料 (★ 終極修正檔名)
+    // 利用 PapaParse 非同步載入 CSV 資料
     async function loadFoodData() {
         return new Promise((resolve) => {
-            // ★ 修改為完全對應 GitHub 的檔名
             Papa.parse('100.csv', {
                 download: true,
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
                     loaded100Bowls = results.data.map(row => {
+                        // 將「經緯度座標」字串拆分成 lat 與 lng
+                        let lat = NaN, lng = NaN;
+                        if (row['經緯度座標']) {
+                            // 支援全形或半形逗號，並自動清除空白
+                            const coords = row['經緯度座標'].replace(/，/g, ',').split(',');
+                            if (coords.length >= 2) {
+                                lat = parseFloat(coords[0].trim());
+                                lng = parseFloat(coords[1].trim());
+                            }
+                        }
+
                         return {
-                            name: row['店名'] || row['名稱'] || row['餐廳名稱'] || row['name'] || "在地美食",
-                            item: row['品項'] || row['推薦美食'] || row['菜名'] || row['item'] || "特色小吃",
-                            address: row['地址'] || row['address'] || "雲林縣",
-                            lat: parseFloat(row['緯度'] || row['Lat'] || row['lat']),
-                            lng: parseFloat(row['經度'] || row['Lng'] || row['lng'])
+                            name: row['商家名稱'] || "在地美食",
+                            item: row['入選品名'] || "特色小吃",
+                            address: row['商家地址'] || "雲林縣",
+                            lat: lat,
+                            lng: lng
                         };
                     }).filter(food => !isNaN(food.lat) && !isNaN(food.lng));
                     
